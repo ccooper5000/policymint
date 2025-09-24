@@ -1,0 +1,16 @@
+# Netlify config for Next.js (App Router, API routes, Edge/SSR)
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["sharp"] # (safe to keep even if unused)
+  included_files = ["public/**"]
+
+[plugins]
+  package = "@netlify/plugin-nextjs"
+
+# Optional: increase default function timeout if you later add heavy LLM calls
+# [functions."*"]
+#   timeout = 20
