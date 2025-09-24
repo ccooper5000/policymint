@@ -5,9 +5,19 @@ import { buildPromptPack } from '../../../lib/prompts';
 import { callModel } from '../../../lib/models';
 import { generateDeterministic } from '../../../lib/deterministic';
 import { mdToHtml } from '../../../lib/markdown';
+// Supabase (server) — use ESM import to avoid edge bundling hiccups.
+// We’ll do a lazy import so the function still runs if env not set.
+import { createClient } from '@supabase/supabase-js';
 
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
+
+function getServerSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anon) return null;
+  return createClient(url, anon, { auth: { persistSession: false } });
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,12 +57,30 @@ export async function POST(request: NextRequest) {
     const tos_html = mdToHtml(tos_markdown);
     const privacy_html = mdToHtml(privacy_markdown);
 
+    // Optional: persist to Supabase (no-ops if env missing)
+    try {
+      const supabase = getServerSupabase();
+      if (supabase) {
+        await supabase.from('generations').insert({
+          app_name: state.appName,
+          legal_entity: state.legalEntityName,
+          contact_email: state.contactEmail,
+          tos_markdown,
+          privacy_markdown,
+          notes
+        });
+      }
+    } catch (e) {
+      // Log but do not fail the response
+      console.warn('Supabase insert warning:', e);
+    }
+
     return NextResponse.json({
       tos_markdown,
       privacy_markdown,
       tos_html,
       privacy_html,
-      notes,
+      notes
     });
   } catch (err) {
     console.error('Generation error:', err);
