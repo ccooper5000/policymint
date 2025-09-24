@@ -1,7 +1,7 @@
 // types/shadcn-shims.d.ts
 // Ambient module shims for UI packages we are NOT actively using.
-// Keeps TypeScript happy during CI builds without pulling heavy deps.
-// If/when you actually use a component, install the real package and remove its shim.
+// If/when you actually render a component, install the real package
+// and remove its line from here.
 
 declare module '@radix-ui/react-accordion';
 declare module '@radix-ui/react-alert-dialog';
@@ -27,7 +27,6 @@ declare module '@radix-ui/react-tabs';
 declare module '@radix-ui/react-toast';
 declare module '@radix-ui/react-tooltip';
 
-// Non-Radix libs often used in shadcn UI files:
 declare module 'cmdk';
 declare module 'embla-carousel-react';
 declare module 'react-day-picker';
@@ -36,6 +35,5 @@ declare module 'recharts';
 declare module 'sonner';
 declare module 'vaul';
 
-// If your UI files import these styling helpers:
 declare module 'class-variance-authority';
 declare module 'tailwind-variants';

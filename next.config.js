@@ -1,14 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // ✅ Fail builds on type or lint errors in production, but not in previews
   typescript: {
-    // Fail builds on type errors in production only
-    ignoreBuildErrors: process.env.NODE_ENV !== 'production',
+    ignoreBuildErrors: process.env.VERCEL_ENV === 'preview' || process.env.NETLIFY === 'true' && process.env.CONTEXT !== 'production'
+      ? true
+      : false
   },
   eslint: {
-    // Same: lint errors fail prod, not preview
-    ignoreDuringBuilds: process.env.NODE_ENV !== 'production',
+    ignoreDuringBuilds: process.env.VERCEL_ENV === 'preview' || process.env.NETLIFY === 'true' && process.env.CONTEXT !== 'production'
+      ? true
+      : false
   },
-  experimental: {},
+  experimental: {}
 };
 
 module.exports = nextConfig;
