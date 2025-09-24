@@ -1,14 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // ✅ Allow successful builds even if type-check finds issues (staging-friendly)
   typescript: {
-    ignoreBuildErrors: true,
+    // Fail builds on type errors in production only
+    ignoreBuildErrors: process.env.NODE_ENV !== 'production',
   },
-  // Optional: lint won’t block builds either (you still get local warnings)
   eslint: {
-    ignoreDuringBuilds: true,
+    // Same: lint errors fail prod, not preview
+    ignoreDuringBuilds: process.env.NODE_ENV !== 'production',
   },
-  // Keep defaults otherwise
   experimental: {},
 };
 
