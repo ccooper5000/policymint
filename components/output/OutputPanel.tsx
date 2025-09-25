@@ -1,76 +1,151 @@
 'use client';
 
 import React from 'react';
-import Card from '../ui/card';
-import Button from '../ui/button';
-import type { FormState } from '../../domain/schema';
 
-export type OutputPayload = {
-  tos_markdown: string;
-  privacy_markdown: string;
-  tos_html: string;
-  privacy_html: string;
-  notes?: string;
+type OutputPanelProps = {
+  // Raw markdown strings coming from the API response
+  tos_markdown?: string | null;
+  privacy_markdown?: string | null;
+
+  // Optional for nicer file names/titles
+  appName?: string | null;
 };
 
-export default function OutputPanel({ state, out }: { state: FormState; out: OutputPayload | null }) {
-  const download = (name: string, content: string, type = 'text/markdown;charset=utf-8') => {
-    const blob = new Blob([content], { type });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = name;
-    a.click();
-    URL.revokeObjectURL(a.href);
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function buildHtmlDocument(title: string, markdown: string): string {
+  // We keep it dependency-free: no client CDN, no markdown lib.
+  // Render markdown text inside <pre> with sensible defaults.
+  const safe = escapeHtml(markdown);
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>${title}</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 2rem auto;
+    max-width: 800px;
+    padding: 0 1rem;
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji;
+    line-height: 1.6;
+  }
+  h1,h2,h3 { line-height: 1.25; }
+  pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font: inherit;
+  }
+  .meta { color: #666; font-size: .9rem; margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+  <div class="meta">${new Date().toISOString()}</div>
+  <pre>${safe}</pre>
+</body>
+</html>`;
+}
+
+function downloadHtml(filename: string, html: string) {
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+export default function OutputPanel({
+  tos_markdown,
+  privacy_markdown,
+  appName,
+}: OutputPanelProps) {
+  const app = (appName || 'PolicyMint').trim().replace(/\s+/g, '-');
+
+  const hasTos = typeof tos_markdown === 'string' && tos_markdown.trim().length > 0;
+  const hasPrivacy = typeof privacy_markdown === 'string' && privacy_markdown.trim().length > 0;
+
+  const handleDownloadTos = () => {
+    if (!hasTos) {
+      alert('No Terms of Service content available to download.');
+      return;
+    }
+    const html = buildHtmlDocument(`${app} — Terms of Service`, tos_markdown!.trim());
+    downloadHtml(`${app}-Terms-of-Service.html`, html);
+  };
+
+  const handleDownloadPrivacy = () => {
+    if (!hasPrivacy) {
+      alert('No Privacy Policy content available to download.');
+      return;
+    }
+    const html = buildHtmlDocument(`${app} — Privacy Policy`, privacy_markdown!.trim());
+    downloadHtml(`${app}-Privacy-Policy.html`, html);
   };
 
   return (
-    <Card>
-      <h2 className="mb-3 text-lg font-semibold">Output</h2>
-      {!out ? (
-        <p className="text-sm text-gray-600">
-          No drafts yet. Fill the form and click <strong>Generate Drafts</strong>.
-        </p>
-      ) : (
-        <div className="grid gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={() => download(`${state.appName || 'app'}-privacy.md`, out.privacy_markdown)}>
-              Download Privacy (.md)
-            </Button>
-            <Button onClick={() => download(`${state.appName || 'app'}-privacy.html`, out.privacy_html, 'text/html;charset=utf-8')}>
-              Download Privacy (.html)
-            </Button>
-            <Button onClick={() => download(`${state.appName || 'app'}-tos.md`, out.tos_markdown)}>
-              Download ToS (.md)
-            </Button>
-            <Button onClick={() => download(`${state.appName || 'app'}-tos.html`, out.tos_html, 'text/html;charset=utf-8')}>
-              Download ToS (.html)
-            </Button>
+    <section className="w-full">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* TOS Panel */}
+        <div className="rounded-xl border border-border p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Terms of Service</h2>
+            <button
+              type="button"
+              onClick={handleDownloadTos}
+              disabled={!hasTos}
+              className={`inline-flex items-center rounded-md px-3 py-2 text-sm font-medium border transition
+                ${hasTos ? 'bg-primary text-primary-foreground hover:opacity-90'
+                         : 'bg-muted text-muted-foreground opacity-60 cursor-not-allowed'}
+              `}
+            >
+              Download HTML
+            </button>
           </div>
-
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700">
-            <div className="mb-1 font-semibold">Notes</div>
-            <pre className="whitespace-pre-wrap">{out.notes}</pre>
-          </div>
-
-          <div className="rounded-2xl border border-gray-200">
-            <div className="bg-gray-100 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">
-              Privacy Policy (Markdown)
-            </div>
-            <div className="max-h-64 overflow-auto p-3 text-sm">
-              <pre className="whitespace-pre-wrap">{out.privacy_markdown}</pre>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-gray-200">
-            <div className="bg-gray-100 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">
-              Terms of Service (Markdown)
-            </div>
-            <div className="max-h-64 overflow-auto p-3 text-sm">
-              <pre className="whitespace-pre-wrap">{out.tos_markdown}</pre>
-            </div>
+          <div className="min-h-[200px] rounded-md bg-muted/40 p-3 text-sm leading-6 overflow-auto">
+            {hasTos ? (
+              <pre className="whitespace-pre-wrap">{tos_markdown}</pre>
+            ) : (
+              <p className="text-muted-foreground">No Terms of Service generated yet.</p>
+            )}
           </div>
         </div>
-      )}
-    </Card>
+
+        {/* Privacy Panel */}
+        <div className="rounded-xl border border-border p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Privacy Policy</h2>
+            <button
+              type="button"
+              onClick={handleDownloadPrivacy}
+              disabled={!hasPrivacy}
+              className={`inline-flex items-center rounded-md px-3 py-2 text-sm font-medium border transition
+                ${hasPrivacy ? 'bg-primary text-primary-foreground hover:opacity-90'
+                             : 'bg-muted text-muted-foreground opacity-60 cursor-not-allowed'}
+              `}
+            >
+              Download HTML
+            </button>
+          </div>
+          <div className="min-h-[200px] rounded-md bg-muted/40 p-3 text-sm leading-6 overflow-auto">
+            {hasPrivacy ? (
+              <pre className="whitespace-pre-wrap">{privacy_markdown}</pre>
+            ) : (
+              <p className="text-muted-foreground">No Privacy Policy generated yet.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
